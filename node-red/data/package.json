@@ -1,0 +1,9 @@
+{
+  "name": "iiot-pipeline-node-red",
+  "description": "Node-RED palette manifest for the IIoT ingestion pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "node-red-contrib-influxdb": "0.7.0"
+  }
+}

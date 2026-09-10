@@ -1,0 +1,33 @@
+# Secrets / local config
+.env
+*.env
+!.env.example
+
+# Node-RED runtime state (regenerated on deploy; never version secrets or
+# machine-specific runtime state)
+node-red/data/flows_cred.json
+node-red/data/.config.*.json
+node-red/data/.sessions.json
+node-red/data/node_modules/
+node-red/data/lib/flows/*
+!node-red/data/lib/flows/.gitkeep
+
+# InfluxDB / Grafana data volumes if ever bind-mounted locally for debugging
+influxdb/data/
+grafana/data/
+**/*.db
+**/*.sqlite
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Backups produced by `make backup`
+backups/

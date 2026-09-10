@@ -1,0 +1,24 @@
+# Optional add-on: Portainer for a GUI over the Docker stack.
+#
+# Per the standard tool stack, only deploy this if the client or a
+# non-technical stakeholder needs site-level visibility into the containers.
+# Otherwise skip it — one less thing to patch and secure.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.portainer.yml up -d
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.21-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-iiot}-portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    networks:
+      - iiot-net
+
+volumes:
+  portainer-data:

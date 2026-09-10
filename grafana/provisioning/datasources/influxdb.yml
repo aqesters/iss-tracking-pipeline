@@ -1,0 +1,23 @@
+# Auto-provisions the InfluxDB datasource on Grafana startup so a fresh
+# deploy has dashboards working immediately — no manual "add datasource"
+# click-through per client site.
+#
+# Values are pulled from the container's environment (set via .env /
+# docker-compose.yml) using Grafana's $__env{} provisioning syntax, so
+# nothing here needs to change between clients.
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: $__env{INFLUXDB_URL}
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: $__env{INFLUXDB_ORG}
+      defaultBucket: $__env{INFLUXDB_BUCKET}
+      tlsSkipVerify: true
+    secureJsonData:
+      token: $__env{INFLUXDB_TOKEN}
+    editable: false
