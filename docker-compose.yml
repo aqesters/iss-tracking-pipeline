@@ -69,7 +69,7 @@ services:
       - iiot-net
 
   grafana:
-    image: grafana/grafana-oss:11.2.0
+    image: grafana/grafana:13.2.3
     container_name: ${COMPOSE_PROJECT_NAME:-iiot}-grafana
     restart: unless-stopped
     depends_on:

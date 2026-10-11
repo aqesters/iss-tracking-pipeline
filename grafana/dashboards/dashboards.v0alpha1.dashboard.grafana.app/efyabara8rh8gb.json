@@ -1,0 +1,620 @@
+{
+  "apiVersion": "dashboard.grafana.app/v0alpha1",
+  "kind": "Dashboard",
+  "metadata": {
+    "annotations": {},
+    "labels": {},
+    "name": "efyabara8rh8gb",
+    "namespace": "default"
+  },
+  "spec": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations \u0026 Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "default": true,
+          "type": "influxdb",
+          "uid": "P951FEA4DE68E13C5"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "points",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "stepBefore",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "dashed"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "text",
+                  "value": -180
+                },
+                {
+                  "color": "text",
+                  "value": 180
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_position_latitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Latitude (ON)"
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_position_longitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Longitude (ON)"
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_track_latitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Latitude (WTIA)"
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_track_longitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Longitude (WTIA)"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 2,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "influxdb",
+              "uid": "P951FEA4DE68E13C5"
+            },
+            "query": "from(bucket: \"external_apis\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r._measurement == \"iss_track\" or r._measurement == \"iss_position\")\n  |\u003e filter(fn: (r) =\u003e r._field == \"latitude\" or r._field == \"longitude\")\n  |\u003e keep(columns: [\"_time\", \"_measurement\", \"_field\", \"_value\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e pivot(rowKey:[\"_time\"], columnKey: [\"_measurement\", \"_field\"], valueColumn: \"_value\")",
+            "refId": "A"
+          }
+        ],
+        "title": "API Comparison: \"Open Notify\" vs \"Where the ISS At\"",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "default": true,
+          "type": "influxdb",
+          "uid": "P951FEA4DE68E13C5"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "points",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "stepBefore",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "dashed"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "text",
+                  "value": -180
+                },
+                {
+                  "color": "text",
+                  "value": 180
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_position_latitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Latitude (ON)"
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_track_latitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Latitude (WTIA)"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "id": 3,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "influxdb",
+              "uid": "P951FEA4DE68E13C5"
+            },
+            "query": "from(bucket: \"external_apis\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r._measurement == \"iss_track\" or r._measurement == \"iss_position\")\n  |\u003e filter(fn: (r) =\u003e r._field == \"latitude\")\n  |\u003e keep(columns: [\"_time\", \"_measurement\", \"_field\", \"_value\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e pivot(rowKey:[\"_time\"], columnKey: [\"_measurement\", \"_field\"], valueColumn: \"_value\")",
+            "refId": "A"
+          }
+        ],
+        "title": "ISS Latitude",
+        "transformations": [
+          {
+            "id": "calculateField",
+            "options": {
+              "alias": "latitude_diff",
+              "binary": {
+                "left": "iss_position_latitude {_start=\"2026-09-21 05:34:06.353 +0000 UTC\", _stop=\"2026-09-21 06:34:06.353 +0000 UTC\"}",
+                "operator": "-",
+                "right": "iss_track_latitude {_start=\"2026-09-21 05:34:06.353 +0000 UTC\", _stop=\"2026-09-21 06:34:06.353 +0000 UTC\"}"
+              },
+              "mode": "binary",
+              "reduce": {
+                "include": [],
+                "reducer": "sum"
+              },
+              "replaceFields": false
+            }
+          },
+          {
+            "id": "calculateField",
+            "options": {
+              "alias": "Absolute difference",
+              "mode": "unary",
+              "reduce": {
+                "reducer": "sum"
+              },
+              "replaceFields": false,
+              "unary": {
+                "fieldName": "latitude_diff",
+                "operator": "abs"
+              }
+            }
+          },
+          {
+            "disabled": true,
+            "id": "calculateField",
+            "options": {
+              "mode": "reduceRow",
+              "reduce": {
+                "include": [
+                  "iss_position_latitude {_start=\"2026-09-21 05:34:06.353 +0000 UTC\", _stop=\"2026-09-21 06:34:06.353 +0000 UTC\"}"
+                ],
+                "reducer": "last"
+              },
+              "replaceFields": false,
+              "window": {
+                "reducer": "mean",
+                "windowAlignment": "trailing",
+                "windowSize": 0.1,
+                "windowSizeMode": "percentage"
+              }
+            }
+          }
+        ],
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "default": true,
+          "type": "influxdb",
+          "uid": "P951FEA4DE68E13C5"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "continuous-YlBl"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "id": 1,
+        "options": {
+          "basemap": {
+            "config": {
+              "url": "https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=cb1_3jt0_1_a15efb579bafde9abf967958"
+            },
+            "name": "Layer 0",
+            "opacity": 1,
+            "type": "xyz"
+          },
+          "controls": {
+            "mouseWheelZoom": true,
+            "showAttribution": true,
+            "showDebug": false,
+            "showMeasure": false,
+            "showScale": false,
+            "showZoom": true
+          },
+          "layers": [
+            {
+              "config": {
+                "arrow": 1,
+                "style": {
+                  "color": {
+                    "field": "_time",
+                    "fixed": "dark-green"
+                  },
+                  "lineWidth": 2,
+                  "opacity": 1,
+                  "rotation": {
+                    "fixed": 0,
+                    "max": 360,
+                    "min": -360,
+                    "mode": "mod"
+                  },
+                  "size": {
+                    "fixed": 4,
+                    "max": 15,
+                    "min": 2
+                  },
+                  "symbol": {
+                    "fixed": "img/icons/marker/circle.svg",
+                    "mode": "fixed"
+                  },
+                  "symbolAlign": {
+                    "horizontal": "center",
+                    "vertical": "center"
+                  },
+                  "text": {
+                    "fixed": "",
+                    "mode": "field"
+                  },
+                  "textConfig": {
+                    "fontSize": 12,
+                    "offsetX": 0,
+                    "offsetY": 0,
+                    "textAlign": "center",
+                    "textBaseline": "middle"
+                  }
+                }
+              },
+              "name": "Layer 1",
+              "tooltip": true,
+              "type": "route"
+            }
+          ],
+          "tooltip": {
+            "mode": "details"
+          },
+          "view": {
+            "allLayers": true,
+            "id": "zero",
+            "lat": 0,
+            "lon": 0,
+            "zoom": 1
+          }
+        },
+        "pluginVersion": "11.2.0",
+        "targets": [
+          {
+            "datasource": {
+              "type": "influxdb",
+              "uid": "P951FEA4DE68E13C5"
+            },
+            "query": "from(bucket: \"external_apis\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r._measurement == \"iss_track\")\n  |\u003e filter(fn: (r) =\u003e r._field == \"latitude\" or r._field == \"longitude\")\n  |\u003e keep(columns: [\"_time\", \"_field\", \"_value\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")",
+            "refId": "A"
+          }
+        ],
+        "title": "ISS Live Position",
+        "type": "geomap"
+      },
+      {
+        "datasource": {
+          "default": true,
+          "type": "influxdb",
+          "uid": "P951FEA4DE68E13C5"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisBorderShow": false,
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "barWidthFactor": 0.6,
+              "drawStyle": "points",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "insertNulls": false,
+              "lineInterpolation": "stepBefore",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "dashed"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "text",
+                  "value": -180
+                },
+                {
+                  "color": "text",
+                  "value": 180
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_position_longitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Longitude (ON)"
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "iss_track_longitude"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Longitude (WTIA)"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "id": 4,
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom",
+            "showLegend": true
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "influxdb",
+              "uid": "P951FEA4DE68E13C5"
+            },
+            "query": "from(bucket: \"external_apis\")\n  |\u003e range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |\u003e filter(fn: (r) =\u003e r._measurement == \"iss_track\" or r._measurement == \"iss_position\")\n  |\u003e filter(fn: (r) =\u003e r._field == \"longitude\")\n  |\u003e keep(columns: [\"_time\", \"_measurement\", \"_field\", \"_value\"])\n  |\u003e aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |\u003e pivot(rowKey:[\"_time\"], columnKey: [\"_measurement\", \"_field\"], valueColumn: \"_value\")",
+            "refId": "A"
+          }
+        ],
+        "title": "ISS Longitude",
+        "type": "timeseries"
+      }
+    ],
+    "refresh": "",
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "ISS Tracking",
+    "weekStart": ""
+  }
+}

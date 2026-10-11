@@ -8,6 +8,78 @@
         "env": []
     },
     {
+        "id": "27cfac4033418569",
+        "type": "group",
+        "z": "4a65d366b52695a9",
+        "style": {
+            "stroke": "#999999",
+            "stroke-opacity": "1",
+            "fill": "none",
+            "fill-opacity": "1",
+            "label": true,
+            "label-position": "nw",
+            "color": "#a4a4a4"
+        },
+        "nodes": [
+            "86043433958d17a9",
+            "cd1f2f96a2fc31f8",
+            "da6d728663de8b4e",
+            "f2ba7e23e4932ead"
+        ],
+        "x": 34,
+        "y": 139,
+        "w": 1272,
+        "h": 82
+    },
+    {
+        "id": "991d4a908246e024",
+        "type": "group",
+        "z": "4a65d366b52695a9",
+        "style": {
+            "stroke": "#999999",
+            "stroke-opacity": "1",
+            "fill": "none",
+            "fill-opacity": "1",
+            "label": true,
+            "label-position": "nw",
+            "color": "#a4a4a4"
+        },
+        "nodes": [
+            "543a367620c731d5",
+            "fd7d0d11c16a5c1b",
+            "fe3ba9188d62eb6e",
+            "86a52c3906d4525c"
+        ],
+        "x": 34,
+        "y": 379,
+        "w": 1292,
+        "h": 82
+    },
+    {
+        "id": "d2021cb439e8de68",
+        "type": "group",
+        "z": "4a65d366b52695a9",
+        "style": {
+            "stroke": "#999999",
+            "stroke-opacity": "1",
+            "fill": "none",
+            "fill-opacity": "1",
+            "label": true,
+            "label-position": "nw",
+            "color": "#a4a4a4"
+        },
+        "nodes": [
+            "7897c98333cc687d",
+            "0f8a686e9eff714e",
+            "6f756a3fbdeeeac0",
+            "ae57351f546c6755"
+        ],
+        "x": 34,
+        "y": 599,
+        "w": 1312,
+        "h": 82
+    },
+    {
         "id": "01066a81e9c4d841",
         "type": "influxdb",
         "hostname": "",
@@ -19,192 +91,16 @@
         "tls": "",
         "influxdbVersion": "2.0",
         "url": "${INFLUXDB_URL}",
-        "timeout": 10,
+        "timeout": "10",
         "rejectUnauthorized": true
-    },
-    {
-        "id": "084fad0bba2c0c9f",
-        "type": "comment",
-        "z": "4a65d366b52695a9",
-        "name": "1. INPUT  (replace simulator with MQTT / Modbus / OPC-UA in production)",
-        "info": "",
-        "x": 180,
-        "y": 80,
-        "wires": []
-    },
-    {
-        "id": "130cacb0965b8bef",
-        "type": "inject",
-        "z": "4a65d366b52695a9",
-        "name": "Simulate sensor tick (3s)",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "3",
-        "crontab": "",
-        "once": true,
-        "onceDelay": "1",
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 180,
-        "y": 140,
-        "wires": [
-            [
-                "480e9048be3f7f24"
-            ]
-        ]
-    },
-    {
-        "id": "480e9048be3f7f24",
-        "type": "function",
-        "z": "4a65d366b52695a9",
-        "name": "Input: Generate Raw Reading (simulator)",
-        "func": "// SIMULATOR - stands in for a real protocol input node (MQTT/Modbus/OPC-UA).\n// Swap this node for that input node in production; every downstream node\n// only cares that msg.payload matches this raw shape:\n//   { machine_id, ts, temp_raw, vibration_samples[], pressure_raw, cycle_pulse_count }\nconst machines = ['press-01', 'press-02', 'cnc-04'];\nconst id = machines[Math.floor(Math.random() * machines.length)];\n\n// context-tracked cycle pulse counter per machine (simulates a PLC counter)\nconst counters = context.get('cycleCounters') || {};\ncounters[id] = (counters[id] || 0) + (Math.random() > 0.3 ? 1 : 0);\ncontext.set('cycleCounters', counters);\n\nmsg.payload = {\n    machine_id: id,\n    ts: Date.now(),\n    // raw ADC counts, 0-4095, needs scaling downstream\n    temp_raw: 1200 + Math.round(Math.random() * 300),\n    // raw accelerometer samples for an RMS calc downstream\n    vibration_samples: Array.from({ length: 20 }, () => (Math.random() - 0.5) * (Math.random() > 0.95 ? 8 : 2)),\n    pressure_raw: 2000 + Math.round(Math.random() * 500),\n    cycle_pulse_count: counters[id]\n};\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 210,
-        "y": 200,
-        "wires": [
-            [
-                "4f3abc385392e914"
-            ]
-        ]
-    },
-    {
-        "id": "da1e0942ea354807",
-        "type": "comment",
-        "z": "4a65d366b52695a9",
-        "name": "2. MATH  (scale raw counts to engineering units)",
-        "info": "",
-        "x": 170,
-        "y": 260,
-        "wires": []
-    },
-    {
-        "id": "4f3abc385392e914",
-        "type": "function",
-        "z": "4a65d366b52695a9",
-        "name": "Math: Engineering Units",
-        "func": "// Convert raw sensor units into calibrated engineering units.\n// Replace the scale/offset constants with your instrumentation's real\n// calibration values (from the sensor datasheet or a calibration cert).\nconst p = msg.payload;\n\n// Example: 12-bit ADC (0-4095) mapped to 0-150C via a linear scale\nconst TEMP_SCALE = 150 / 4095;\nconst temperature_c = +(p.temp_raw * TEMP_SCALE).toFixed(2);\n\n// Vibration RMS from raw accelerometer samples (g)\nconst samples = p.vibration_samples || [];\nconst rms = samples.length\n    ? Math.sqrt(samples.reduce((sum, v) => sum + v * v, 0) / samples.length)\n    : 0;\nconst vibration_rms_g = +rms.toFixed(3);\n\n// Example: pressure transducer, 0-4095 raw -> 0-250 psi\nconst PRESSURE_SCALE = 250 / 4095;\nconst pressure_psi = +(p.pressure_raw * PRESSURE_SCALE).toFixed(2);\n\nmsg.payload = {\n    machine_id: p.machine_id,\n    ts: p.ts,\n    temperature_c,\n    vibration_rms_g,\n    pressure_psi,\n    cycle_pulse_count: p.cycle_pulse_count\n};\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 190,
-        "y": 320,
-        "wires": [
-            [
-                "d1f6ab6c1523c372"
-            ]
-        ]
-    },
-    {
-        "id": "551e39c65f923b68",
-        "type": "comment",
-        "z": "4a65d366b52695a9",
-        "name": "3. STATEFUL OPS  (rolling averages, run-state, uptime via flow context)",
-        "info": "",
-        "x": 230,
-        "y": 380,
-        "wires": []
-    },
-    {
-        "id": "d1f6ab6c1523c372",
-        "type": "function",
-        "z": "4a65d366b52695a9",
-        "name": "Stateful Ops: Rolling Stats & Run-State",
-        "func": "// Keeps per-machine rolling history in flow context so we can compute\n// trends and machine state without a database round-trip on every message.\nconst p = msg.payload;\nconst key = p.machine_id;\n\nconst history = flow.get('history') || {};\nconst h = history[key] || {\n    temps: [], lastCycleCount: p.cycle_pulse_count, cycleTotal: 0,\n    lastRunState: null, lastStateChangeTs: p.ts\n};\n\n// Rolling average temperature over the last 20 readings\nh.temps.push(p.temperature_c);\nif (h.temps.length > 20) h.temps.shift();\nconst temp_rolling_avg_c = +(h.temps.reduce((a, b) => a + b, 0) / h.temps.length).toFixed(2);\n\n// Cycle delta since last reading (handles PLC counter reset to 0)\nconst cycleDelta = p.cycle_pulse_count >= h.lastCycleCount\n    ? p.cycle_pulse_count - h.lastCycleCount\n    : p.cycle_pulse_count;\nh.cycleTotal += cycleDelta;\nh.lastCycleCount = p.cycle_pulse_count;\n\n// Running/idle state from vibration - tune this threshold per machine type.\nconst runState = p.vibration_rms_g > 0.35 ? 'running' : 'idle';\nif (runState !== h.lastRunState) {\n    h.lastStateChangeTs = p.ts;\n    h.lastRunState = runState;\n}\nconst seconds_in_state = Math.round((p.ts - h.lastStateChangeTs) / 1000);\n\nhistory[key] = h;\nflow.set('history', history);\n\nmsg.payload = {\n    ...p,\n    temp_rolling_avg_c,\n    cycle_total: h.cycleTotal,\n    run_state: runState,\n    seconds_in_state\n};\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 220,
-        "y": 440,
-        "wires": [
-            [
-                "2666d5164f58d301"
-            ]
-        ]
-    },
-    {
-        "id": "76337af2180b4442",
-        "type": "comment",
-        "z": "4a65d366b52695a9",
-        "name": "4. SYNTHETIC  (composite/derived metrics not on any single sensor)",
-        "info": "",
-        "x": 220,
-        "y": 500,
-        "wires": []
-    },
-    {
-        "id": "2666d5164f58d301",
-        "type": "function",
-        "z": "4a65d366b52695a9",
-        "name": "Synthetic: Derived Metrics",
-        "func": "// Composite/synthetic tags that don't come off any single sensor - the\n// kind of thing a plant manager actually wants on a dashboard.\nconst p = msg.payload;\n\n// Anomaly score: how far current temp is from its own rolling average,\n// normalized. >1 is 'worth a look' - tune per equipment.\nconst deviation = Math.abs(p.temperature_c - p.temp_rolling_avg_c);\nconst anomaly_score = +(deviation / 5).toFixed(2);\n\n// Simple composite health score (0-100): penalize high vibration,\n// temperature deviation, and prolonged idle equally for a first pass -\n// replace with a client-specific weighting once you have failure history.\nlet health_score = 100;\nhealth_score -= Math.min(40, p.vibration_rms_g * 40);\nhealth_score -= Math.min(40, anomaly_score * 20);\nif (p.run_state === 'idle' && p.seconds_in_state > 300) health_score -= 10;\nhealth_score = Math.max(0, Math.round(health_score));\n\nmsg.payload = {\n    ...p,\n    anomaly_score,\n    health_score,\n    alert: anomaly_score > 1.5 || p.vibration_rms_g > 0.6\n};\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 190,
-        "y": 560,
-        "wires": [
-            [
-                "cec937265de66735"
-            ]
-        ]
-    },
-    {
-        "id": "700306a8112d1b73",
-        "type": "comment",
-        "z": "4a65d366b52695a9",
-        "name": "5. STANDARDIZE  (shape point for InfluxDB line protocol)",
-        "info": "",
-        "x": 210,
-        "y": 620,
-        "wires": []
-    },
-    {
-        "id": "cec937265de66735",
-        "type": "function",
-        "z": "4a65d366b52695a9",
-        "name": "Standardize: Prep for InfluxDB",
-        "func": "// Shapes the enriched reading into the format node-red-contrib-influxdb's\n// \"InfluxDB out\" node (API v2) expects for a single point:\n//   msg.payload = [ fieldsObject, tagsObject ]\n// Tags = low-cardinality, indexed, used for filtering/grouping (strings only).\n// Fields = the actual measured/derived values. A field literally named\n// \"time\" is handled specially by the node and becomes the point's\n// timestamp - see node_modules/node-red-contrib-influxdb's addFieldToPoint().\n// The measurement name itself (\"machine_metrics\") is set on the\n// \"InfluxDB out\" node's Measurement field rather than here, since it's\n// constant for this flow.\nconst p = msg.payload;\n\nconst fields = {\n    time: new Date(p.ts),\n    temperature_c: p.temperature_c,\n    temp_rolling_avg_c: p.temp_rolling_avg_c,\n    vibration_rms_g: p.vibration_rms_g,\n    pressure_psi: p.pressure_psi,\n    cycle_total: p.cycle_total,\n    seconds_in_state: p.seconds_in_state,\n    anomaly_score: p.anomaly_score,\n    health_score: p.health_score,\n    alert: p.alert\n};\n\nconst tags = {\n    machine_id: p.machine_id,\n    run_state: p.run_state\n};\n\nmsg.payload = [fields, tags];\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 200,
-        "y": 680,
-        "wires": [
-            [
-                "11f464e53ab5e305",
-                "543a367620c731d5"
-            ]
-        ]
     },
     {
         "id": "11f464e53ab5e305",
         "type": "influxdb out",
         "z": "4a65d366b52695a9",
         "influxdb": "01066a81e9c4d841",
-        "name": "InfluxDB out: machine_metrics",
-        "measurement": "machine_metrics",
+        "name": "InfluxDB out: external_apis",
+        "measurement": "",
         "precision": "ms",
         "retentionPolicy": "",
         "database": "",
@@ -212,15 +108,16 @@
         "retentionPolicyV18Flux": "",
         "org": "${INFLUXDB_ORG}",
         "bucket": "${INFLUXDB_BUCKET}",
-        "x": 470,
-        "y": 680,
+        "x": 1200,
+        "y": 780,
         "wires": []
     },
     {
         "id": "543a367620c731d5",
         "type": "debug",
         "z": "4a65d366b52695a9",
-        "name": "Debug: final point",
+        "g": "991d4a908246e024",
+        "name": "Debug: WhereTheISS",
         "active": true,
         "tosidebar": true,
         "console": false,
@@ -229,18 +126,275 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 470,
-        "y": 740,
+        "x": 1180,
+        "y": 420,
         "wires": []
     },
     {
-        "id": "f29fd096335bec94",
-        "type": "comment",
+        "id": "86043433958d17a9",
+        "type": "http request",
         "z": "4a65d366b52695a9",
-        "name": "If you see this, then flows.json changes are persistent!",
-        "info": "",
-        "x": 720,
-        "y": 80,
+        "g": "27cfac4033418569",
+        "name": "API: Open Notify ISS Now",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://api.open-notify.org/iss-now.json",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 410,
+        "y": 180,
+        "wires": [
+            [
+                "cd1f2f96a2fc31f8"
+            ]
+        ]
+    },
+    {
+        "id": "cd1f2f96a2fc31f8",
+        "type": "function",
+        "z": "4a65d366b52695a9",
+        "g": "27cfac4033418569",
+        "name": "Parse ISS position",
+        "func": "const body = msg.payload;\nif (!body || body.message !== \"success\") {\n    node.warn(\"ISS Now API returned non-success\");\n    return null;\n}\nmsg.payload = [\n    {\n        latitude: parseFloat(body.iss_position.latitude),\n        longitude: parseFloat(body.iss_position.longitude)\n    },\n    { source: \"open_notify\" }\n];\nmsg.measurement = \"iss_position\";\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 710,
+        "y": 180,
+        "wires": [
+            [
+                "f2ba7e23e4932ead",
+                "11f464e53ab5e305"
+            ]
+        ]
+    },
+    {
+        "id": "da6d728663de8b4e",
+        "type": "inject",
+        "z": "4a65d366b52695a9",
+        "g": "27cfac4033418569",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 180,
+        "wires": [
+            [
+                "86043433958d17a9"
+            ]
+        ]
+    },
+    {
+        "id": "fd7d0d11c16a5c1b",
+        "type": "http request",
+        "z": "4a65d366b52695a9",
+        "g": "991d4a908246e024",
+        "name": "API: wheretheiss.at",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://api.wheretheiss.at/v1/satellites/25544",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 390,
+        "y": 420,
+        "wires": [
+            [
+                "86a52c3906d4525c"
+            ]
+        ]
+    },
+    {
+        "id": "fe3ba9188d62eb6e",
+        "type": "inject",
+        "z": "4a65d366b52695a9",
+        "g": "991d4a908246e024",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 420,
+        "wires": [
+            [
+                "fd7d0d11c16a5c1b"
+            ]
+        ]
+    },
+    {
+        "id": "86a52c3906d4525c",
+        "type": "function",
+        "z": "4a65d366b52695a9",
+        "g": "991d4a908246e024",
+        "name": "Parse ISS tracking details",
+        "func": "const body = msg.payload;\nif (!body || typeof body.latitude !== \"number\" || typeof body.longitude !== \"number\") {\n    node.warn(\"wheretheiss.at API returned an unexpected/missing payload\");\n    return null;\n}\nmsg.payload = [\n    {\n        latitude: body.latitude,\n        longitude: body.longitude,\n        altitude_km: body.altitude,\n        velocity_kmh: body.velocity,\n        footprint_km: body.footprint,\n        solar_lat: body.solar_lat,\n        solar_lon: body.solar_lon\n    },\n    { source: \"wheretheiss\", visibility: body.visibility }\n];\nmsg.measurement = \"iss_track\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 420,
+        "wires": [
+            [
+                "543a367620c731d5",
+                "11f464e53ab5e305"
+            ]
+        ]
+    },
+    {
+        "id": "7897c98333cc687d",
+        "type": "inject",
+        "z": "4a65d366b52695a9",
+        "g": "d2021cb439e8de68",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "3600",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 640,
+        "wires": [
+            [
+                "0f8a686e9eff714e"
+            ]
+        ]
+    },
+    {
+        "id": "0f8a686e9eff714e",
+        "type": "http request",
+        "z": "4a65d366b52695a9",
+        "g": "d2021cb439e8de68",
+        "name": "API: Open Notify Astros",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://api.open-notify.org/astros.json",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 410,
+        "y": 640,
+        "wires": [
+            [
+                "6f756a3fbdeeeac0"
+            ]
+        ]
+    },
+    {
+        "id": "6f756a3fbdeeeac0",
+        "type": "function",
+        "z": "4a65d366b52695a9",
+        "g": "d2021cb439e8de68",
+        "name": "Parse crew count",
+        "func": "const body = msg.payload;\nif (!body || body.message !== \"success\" || !Array.isArray(body.people)) {\n    node.warn(\"People in Space API returned non-success or malformed payload\");\n    return null;\n}\nconst issCrew = body.people.filter(p => p.craft === \"ISS\");\nmsg.payload = [\n    {\n        crew_count: issCrew.length,\n        total_people_in_space: body.number\n    },\n    { source: \"open_notify\" }\n];\nmsg.measurement = \"iss_crew\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 710,
+        "y": 640,
+        "wires": [
+            [
+                "ae57351f546c6755",
+                "11f464e53ab5e305"
+            ]
+        ]
+    },
+    {
+        "id": "f2ba7e23e4932ead",
+        "type": "debug",
+        "z": "4a65d366b52695a9",
+        "g": "27cfac4033418569",
+        "name": "Debug: ISS Now",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1170,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "ae57351f546c6755",
+        "type": "debug",
+        "z": "4a65d366b52695a9",
+        "g": "d2021cb439e8de68",
+        "name": "Debug: People in Space",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1190,
+        "y": 640,
         "wires": []
     }
 ]
