@@ -1,10 +1,13 @@
 .PHONY: up down restart logs ps config backup restore clean secrets sync-flows restore-flows
 
+-include .env
+export
+
 # Re-evaluated every time it's referenced (not cached at parse time),
 # so it's always current even mid-chain (e.g. after a `make up`).
 NODE_RED_CONTAINER = $(shell docker compose ps -q node-red)
 INFLUXDB_CONTAINER = $(shell docker compose ps -q influxdb)
-INFLUX_ORG ?= "homelab"
+INFLUX_ORG ?= $(INFLUXDB_INIT_ORG)
 STAMP      := $(shell date +%Y%m%d-%H%M%S)
 
 # Bring the stack up (build Node-RED image if needed)
@@ -54,14 +57,14 @@ sync-flows:
 	@test -n "$(NODE_RED_CONTAINER)" || (echo "Container not running — run 'make up' first" && exit 1)
 	docker cp $(NODE_RED_CONTAINER):/data/flows.json ./node-red/data/flows.json
 	docker cp $(NODE_RED_CONTAINER):/data/settings.js ./node-red/data/settings.js
-	@echo "Synced flows.json and settings.js from container to repo"
+	@echo "Synced flows.json and settings.js from container to repo\n"
 
 # Copy Node-RED flows and settings from local git repo to container storage
 restore-flows:
 	@test -n "$(NODE_RED_CONTAINER)" || (echo "Container not running — run 'make up' first" && exit 1)
 	docker cp ./node-red/data/flows.json $(NODE_RED_CONTAINER):/data/flows.json
 	docker cp ./node-red/data/settings.js $(NODE_RED_CONTAINER):/data/settings.js
-	@echo "Restored flows.json and settings.js from repo to container — redeploy in the editor to apply"
+	@echo "Restored flows.json and settings.js from repo to container — redeploy in the editor to apply\n"
 
 # ---------- Grafana ----------
 
@@ -70,13 +73,13 @@ sync-grafana:
 	@command -v gcx >/dev/null || (echo "gcx not installed — see https://github.com/grafana/gcx#installation" && exit 1)
 	@mkdir -p ./grafana/dashboards
 	gcx resources pull dashboards -p ./grafana/dashboards
-	@echo "Synced Grafana dashboards from container to repo"
+	@echo "Synced Grafana dashboards from container to repo\n"
 
 # Push dashboards from the repo back into Grafana
 restore-grafana:
 	@command -v gcx >/dev/null || (echo "gcx not installed — see https://github.com/grafana/gcx#installation" && exit 1)
 	gcx resources push -p ./grafana/dashboards
-	@echo "Restored Grafana dashboards from repo to container"
+	@echo "Restored Grafana dashboards from repo to container\n"
 
 # ---------- InfluxDB ----------
 
@@ -87,7 +90,7 @@ sync-influx:
 	docker exec $(INFLUXDB_CONTAINER) influx export all --org $(INFLUX_ORG) --file /tmp/influx-template.yml
 	docker cp $(INFLUXDB_CONTAINER):/tmp/influx-template.yml ./influxdb/template.yml
 	docker exec $(INFLUXDB_CONTAINER) rm -f /tmp/influx-template.yml
-	@echo "Synced InfluxDB resource template from container to repo"
+	@echo "Synced InfluxDB resource template from container to repo\n"
 
 # Recreate buckets, tasks, etc. from the template (intended for a fresh instance)
 restore-influx:
@@ -95,7 +98,7 @@ restore-influx:
 	docker cp ./influxdb/template.yml $(INFLUXDB_CONTAINER):/tmp/influx-template.yml
 	docker exec $(INFLUXDB_CONTAINER) influx apply --org $(INFLUX_ORG) --file /tmp/influx-template.yml --force yes
 	docker exec $(INFLUXDB_CONTAINER) rm -f /tmp/influx-template.yml
-	@echo "Restored InfluxDB resources from repo to container"
+	@echo "Restored InfluxDB resources from repo to container\n"
 
 # Back up time-series data to ./backups (gitignored, not part of the repo)
 backup-influx:

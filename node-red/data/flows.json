@@ -2,7 +2,7 @@
     {
         "id": "4a65d366b52695a9",
         "type": "tab",
-        "label": "IIoT Ingestion Pipeline",
+        "label": "ISS API Connections",
         "disabled": false,
         "info": "Input -> Math -> Stateful Ops -> Synthetic -> Standardize -> InfluxDB out\n\nSee docs/ARCHITECTURE.md for the full explanation of each stage.\n\nTo go live at a client site: disable/delete the 'Simulated Machine Input' inject + 'Generate Raw Reading' function, and wire a real protocol node (MQTT in, Modbus Read, OPC-UA Item, etc.) into 'Math - Engineering Units' instead, matching the raw payload shape documented on that function node.",
         "env": []
@@ -99,7 +99,7 @@
         "type": "influxdb out",
         "z": "4a65d366b52695a9",
         "influxdb": "01066a81e9c4d841",
-        "name": "InfluxDB out: external_apis",
+        "name": "InfluxDB out",
         "measurement": "",
         "precision": "ms",
         "retentionPolicy": "",
@@ -108,7 +108,7 @@
         "retentionPolicyV18Flux": "",
         "org": "${INFLUXDB_ORG}",
         "bucket": "${INFLUXDB_BUCKET}",
-        "x": 1200,
+        "x": 1150,
         "y": 780,
         "wires": []
     },
