@@ -40,13 +40,14 @@ cp .env.example .env
 make secrets    # prints random values to paste into .env
 ```
 
-Fill in:
+The command `make secrets` will create random values. Copy these into the `.env` file.
 
 - `INFLUXDB_INIT_ADMIN_TOKEN` and `INFLUXDB_TOKEN`: use the same value for both. This is the only InfluxDB token in the stack. Node-RED and Grafana both connect with it.
-- `INFLUXDB_INIT_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`: real passwords.
 - `NODE_RED_CREDENTIAL_SECRET`: random string that encrypts credentials Node-RED stores. Changing it after first run invalidates saved node credentials.
 
-Leave these at their defaults unless you have a reason to change them. Each `INIT_*` value must match its counterpart:
+
+
+Leave the following values at their defaults unless you have a reason to change them. Each `INIT_*` value must match its counterpart:
 
 | Variable | Default |
 |---|---|
@@ -68,21 +69,17 @@ make up
 
 | Service | URL |
 |---|---|
-| Node-RED | `http://<host>:1880` (`NODE_RED_PORT`) |
-| Grafana | `http://<host>:3000` (`GRAFANA_PORT`; login: `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`) |
-| InfluxDB | `http://<host>:8086` |
+| Node-RED | `http://localhost:1880` |
+| Grafana | `http://localhost:3000` [user: admin / password: default-password] |
+| InfluxDB | `http://localhost:8086` [user: admin / password: default-password] |
 
 On first boot, InfluxDB creates the `iss_data` org and the `iss_position_data` bucket from `.env`.
 
 ### 3. Load the flows and add the token in Node-RED
 
-```bash
-make restore-flows
-```
+In the Node-RED editor:
 
-Then in the Node-RED editor:
-
-1. Double-click any **influxdb out** node, then click the pencil icon next to **Server** to edit the shared config node.
+1. Double-click the **influxdb out** node, then click the pencil icon next to **Server** to edit the shared config node.
 2. Paste the `INFLUXDB_TOKEN` value from `.env` into **Token** and confirm **Organization** is `iss_data`.
 3. Click **Update**, **Done**, then **Deploy**.
 
@@ -90,23 +87,26 @@ Node-RED stores this token in `flows_cred.json`, which never syncs to git. Re-en
 
 ### 4. Set up Grafana syncing and restore the dashboards
 
-Grafana's InfluxDB data source is provisioned automatically from `grafana/provisioning/datasources/influxdb.yml`, using `INFLUXDB_TOKEN` and the other values in `.env`. Dashboards are not provisioned. Follow [Grafana setup for syncing](#grafana-setup-for-syncing) to create the service account token and log in gcx, then push the dashboards from the repo:
+Run the following command to create the ISS Tracking dashboard:
 
 ```bash
 make restore-grafana
 ```
 
+Grafana's InfluxDB data source is provisioned automatically from `grafana/provisioning/datasources/influxdb.yml`, using `INFLUXDB_TOKEN` and the other values in `.env`. To save any dashboard changes to the repo, follow instructions in [Grafana setup for syncing](#grafana-setup-for-syncing).
+
 ### 5. Verify
 
 1. Node-RED debug sidebar (bug icon): no errors after a few poll cycles.
 2. InfluxDB **Data Explorer**: bucket `iss_position_data` shows recent points under `iss_track` and `iss_crew`.
-3. Grafana: the **ISS Tracking** dashboard shows the map, altitude/velocity, and crew count, and updates on refresh.
+3. Grafana: the **ISS Tracking** dashboard shows the map, longitude and latitude, and updates on refresh.
 
 ---
 
 ## Making changes
 
 Each service keeps its live state in a Docker volume, not in this repo. Edit in the UI, then run `make sync` to copy the current state into the repo, and commit.
+**To sync Grafana dashboards changes, you must first complete instructions for [Grafana setup for syncing](#grafana-setup-for-syncing).**
 
 ```bash
 # 1. Edit in Node-RED (then Deploy), Grafana (then Save dashboard), or InfluxDB
@@ -137,17 +137,15 @@ Don't edit files in the repo and expect them to take effect. The `restore-*` tar
    # or: curl -fsSL https://raw.githubusercontent.com/grafana/gcx/main/scripts/install.sh | sh
    gcx --version
    ```
-2. **Create a service account** in Grafana: **Administration → Users and access → Service accounts → Add service account**. Name it `gcx-sync` and set the role to **Editor** (needed for `restore-grafana` to push) or **Admin**.
+2. **Create a service account** in Grafana: **Administration → Users and access → Service accounts → Add service account**. Name it `gcx-sync` and set the role to **Admin**.
 3. **Generate a token**: on the service account's page, **Add service account token → Generate token**. Copy it right away. Tokens start with `glsa_`.
 4. **Save the token** as `GRAFANA_SA_TOKEN` in `.env`.
 5. **Log in gcx**
    ```bash
-   gcx login local --server http://<host>:3000 --token glsa_... --yes
+   gcx login local --server http://<host>:3000 --token <glsa token here> --yes
    gcx config check
    ```
    The server must be the same address you use for Grafana in your browser.
-
-**Restricted dashboards:** gcx skips any dashboard the service account isn't allowed to view, with no error. If a dashboard has its own permissions (as ISS Tracking does), open it and go to **Settings → Permissions**, then add the `gcx-sync` service account with **Edit**. Giving the service account the **Admin** role avoids this entirely.
 
 **Data sources:** only dashboards and folders are synced. Data sources come from `grafana/provisioning/datasources/`. A data source added through the Grafana UI is not captured by `make sync`, so add it to the provisioning folder if it needs to survive a rebuild.
 

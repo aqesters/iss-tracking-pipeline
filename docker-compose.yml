@@ -1,10 +1,6 @@
 # =============================================================================
-# IIoT Data Pipeline — Node-RED (ingestion/routing) -> InfluxDB (storage) ->
+# Data Pipeline — Node-RED (ingestion/routing) -> InfluxDB (storage) ->
 # Grafana (dashboards)
-#
-# Usage:
-#   cp .env.example .env   # then fill in real values
-#   docker compose up -d
 #
 # See README.md for the full setup walkthrough and docs/ARCHITECTURE.md for
 # how data flows through the stack.

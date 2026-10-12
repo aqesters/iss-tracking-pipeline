@@ -47,8 +47,6 @@ secrets:
 	@echo "INFLUXDB_INIT_ADMIN_TOKEN=$$(openssl rand -hex 32)"
 	@echo "INFLUXDB_TOKEN=<same value as above>"
 	@echo "NODE_RED_CREDENTIAL_SECRET=$$(openssl rand -hex 32)"
-	@echo "INFLUXDB_INIT_PASSWORD=$$(openssl rand -base64 18)"
-	@echo "GRAFANA_ADMIN_PASSWORD=$$(openssl rand -base64 18)"
 
 # ---------- Node-RED ----------
 
