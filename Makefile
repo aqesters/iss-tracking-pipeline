@@ -71,14 +71,14 @@ restore-flows:
 # Pull all dashboards from Grafana into the repo
 sync-grafana:
 	@command -v gcx >/dev/null || (echo "gcx not installed — see https://github.com/grafana/gcx#installation" && exit 1)
-	@mkdir -p ./grafana/dashboards
-	gcx resources pull dashboards -p ./grafana/dashboards
-	@echo "Synced Grafana dashboards from container to repo\n"
+	@rm -rf ./grafana/resources && mkdir -p ./grafana/resources
+	gcx resources pull dashboards folders -p ./grafana/resources --include-managed
+	@echo "Synced Grafana dashboards and folders from container to repo\n"
 
 # Push dashboards from the repo back into Grafana
 restore-grafana:
 	@command -v gcx >/dev/null || (echo "gcx not installed — see https://github.com/grafana/gcx#installation" && exit 1)
-	gcx resources push -p ./grafana/dashboards
+	gcx resources push -p ./grafana/resources
 	@echo "Restored Grafana dashboards from repo to container\n"
 
 # ---------- InfluxDB ----------

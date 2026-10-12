@@ -1,183 +1,238 @@
-# IIoT Data Pipeline Template
+# ISS Tracking Pipeline
 
-Dockerized Node-RED -> InfluxDB -> Grafana stack for pulling machine/process
-data off the plant floor and into dashboards clients can actually use.
-
-This is a **template repo** — clone it per client (`git clone` into a new
-private repo, or use it as a GitHub template), customize the input node and
-the business logic in `node-red/data/flows.json`, and ship it. See
-`docs/ARCHITECTURE.md` for how the pipeline is structured and
-`docs/ARCHITECTURE.md#going-from-simulator-to-a-real-input` for wiring up a
-client's actual equipment.
-
-## Stack
+Dockerized Node-RED → InfluxDB → Grafana stack that polls public ISS APIs, stores the results as time series, and displays them on a Grafana dashboard.
 
 | Component | Role |
 |---|---|
-| [Node-RED](https://nodered.org/) | Ingestion, routing, and transformation |
-| [InfluxDB 2.x](https://www.influxdata.com/) | Time-series storage |
-| [Grafana](https://grafana.com/) | Dashboards |
-| Docker Compose | Reproducible deployment |
+| [Node-RED](https://nodered.org/) | Polls the ISS APIs, reshapes the JSON, writes to InfluxDB |
+| [InfluxDB 2.x](https://www.influxdata.com/) | Time-series storage (org `iss_data`, bucket `iss_position_data`) |
+| [Grafana 13](https://grafana.com/) | ISS Tracking dashboard |
+| Docker Compose | Reproducible deployment (project name `iss-tracker`) |
+| [gcx](https://github.com/grafana/gcx) | Syncs Grafana dashboards to and from this repo |
 
-Runs out of the box with a built-in data simulator (three fake machines) so
-you can see the whole pipeline working before connecting real hardware.
+## Data flows
 
-## Quick start
+| Flow | Source | Poll interval | Measurement | Fields |
+|---|---|---|---|---|
+| A (optional) | `api.open-notify.org/iss-now.json` | 10 s | `iss_position` | `latitude`, `longitude` |
+| B (primary) | `api.wheretheiss.at/v1/satellites/25544` | 5–10 s | `iss_track` | `latitude`, `longitude`, `altitude_km`, `velocity_kmh`, `footprint_km`, `solar_lat`, `solar_lon` (tag: `visibility`) |
+| C | `api.open-notify.org/astros.json` | 1 h | `iss_crew` | `crew_count`, `total_people_in_space` |
 
-Requires Docker and Docker Compose.
+All three write to the `iss_position_data` bucket. Flow B covers everything Flow A does, so Flow A can stay disabled.
+
+The host needs outbound HTTP/HTTPS access to both APIs. Check before setup:
+
+```bash
+curl https://api.wheretheiss.at/v1/satellites/25544
+curl http://api.open-notify.org/astros.json
+```
+
+---
+
+## First-time setup
+
+Requires Docker and Docker Compose on the host. The InfluxDB image in `docker-compose.yml` must stay pinned to a 2.x tag (e.g. `influxdb:2.7`). The `latest` tag now points to InfluxDB 3, which doesn't support Flux.
+
+### 1. Create `.env`
 
 ```bash
 cp .env.example .env
+make secrets    # prints random values to paste into .env
 ```
 
-Generate real secrets instead of the placeholders (prints values to paste into `.env`):
+Fill in:
 
-```bash
-make secrets
-```
+- `INFLUXDB_INIT_ADMIN_TOKEN` and `INFLUXDB_TOKEN`: use the same value for both. This is the only InfluxDB token in the stack. Node-RED and Grafana both connect with it.
+- `INFLUXDB_INIT_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`: real passwords.
+- `NODE_RED_CREDENTIAL_SECRET`: random string that encrypts credentials Node-RED stores. Changing it after first run invalidates saved node credentials.
 
-At minimum, set in `.env`:
-- `INFLUXDB_INIT_ADMIN_TOKEN` and `INFLUXDB_TOKEN` — **use the same value for both.** The former is what InfluxDB creates itself with on first boot; the latter is what Node-RED/Grafana authenticate with.
-- `INFLUXDB_INIT_PASSWORD`, `GRAFANA_ADMIN_PASSWORD` — real passwords.
-- `NODE_RED_CREDENTIAL_SECRET` — random string, used to encrypt any credentials Node-RED stores.
-- `INFLUXDB_INIT_ORG` / `INFLUXDB_ORG` and `INFLUXDB_INIT_BUCKET` / `INFLUXDB_BUCKET` — keep each pair identical; rename to match the client.
+Leave these at their defaults unless you have a reason to change them. Each `INIT_*` value must match its counterpart:
 
-Then bring up the stack:
+| Variable | Default |
+|---|---|
+| `INFLUXDB_INIT_ORG` / `INFLUXDB_ORG` | `iss_data` |
+| `INFLUXDB_INIT_BUCKET` / `INFLUXDB_BUCKET` | `iss_position_data` |
+| `INFLUXDB_INIT_RETENTION` | `90d` |
+| `INFLUXDB_URL` | `http://influxdb:8086` (internal Docker network) |
+| `NODE_RED_PORT` / `GRAFANA_PORT` | `1880` / `3000` |
+
+`GRAFANA_SA_TOKEN` stays a placeholder for now. You fill it in after Grafana is running (step 4).
+
+`.env` is gitignored. Never commit it.
+
+### 2. Start the stack
 
 ```bash
 make up
-# or: docker compose up -d --build
 ```
 
-Open:
-- Node-RED editor: http://localhost:1880
-- Grafana: http://localhost:3000 (login with `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`)
-- InfluxDB UI: http://localhost:8086 (only if you keep the port binding in `docker-compose.yml`)
+| Service | URL |
+|---|---|
+| Node-RED | `http://<host>:1880` (`NODE_RED_PORT`) |
+| Grafana | `http://<host>:3000` (`GRAFANA_PORT`; login: `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`) |
+| InfluxDB | `http://<host>:8086` |
 
-The **Plant Floor Overview** dashboard in Grafana should show data moving
-within ~10 seconds — the simulator injects a reading every 3 seconds for one
-of three fake machines (`press-01`, `press-02`, `cnc-04`).
+On first boot, InfluxDB creates the `iss_data` org and the `iss_position_data` bucket from `.env`.
+
+### 3. Load the flows and add the token in Node-RED
+
+```bash
+make restore-flows
+```
+
+Then in the Node-RED editor:
+
+1. Double-click any **influxdb out** node, then click the pencil icon next to **Server** to edit the shared config node.
+2. Paste the `INFLUXDB_TOKEN` value from `.env` into **Token** and confirm **Organization** is `iss_data`.
+3. Click **Update**, **Done**, then **Deploy**.
+
+Node-RED stores this token in `flows_cred.json`, which never syncs to git. Re-enter it on every new deployment.
+
+### 4. Set up Grafana syncing and restore the dashboards
+
+Grafana's InfluxDB data source is provisioned automatically from `grafana/provisioning/datasources/influxdb.yml`, using `INFLUXDB_TOKEN` and the other values in `.env`. Dashboards are not provisioned. Follow [Grafana setup for syncing](#grafana-setup-for-syncing) to create the service account token and log in gcx, then push the dashboards from the repo:
+
+```bash
+make restore-grafana
+```
+
+### 5. Verify
+
+1. Node-RED debug sidebar (bug icon): no errors after a few poll cycles.
+2. InfluxDB **Data Explorer**: bucket `iss_position_data` shows recent points under `iss_track` and `iss_crew`.
+3. Grafana: the **ISS Tracking** dashboard shows the map, altitude/velocity, and crew count, and updates on refresh.
+
+---
+
+## Making changes
+
+Each service keeps its live state in a Docker volume, not in this repo. Edit in the UI, then run `make sync` to copy the current state into the repo, and commit.
+
+```bash
+# 1. Edit in Node-RED (then Deploy), Grafana (then Save dashboard), or InfluxDB
+# 2. Copy the live state into the repo
+make sync
+# 3. Review and commit
+git add -A
+git commit -m "Describe the change"
+```
+
+`make sync` runs three targets, which you can also run on their own:
+
+| Target | What it captures | Where it goes |
+|---|---|---|
+| `make sync-flows` | Node-RED `flows.json` and `settings.js` | `node-red/data/` |
+| `make sync-grafana` | All Grafana dashboards and folders | `grafana/resources/` |
+| `make sync-influx` | InfluxDB buckets, tasks, and other resources as a template (no data, no tokens) | `influxdb/template.yml` |
+
+Don't edit files in the repo and expect them to take effect. The `restore-*` targets are the only way to push repo files into the running services.
+
+### Grafana setup for syncing
+
+`sync-grafana` and `restore-grafana` use gcx, which runs on the machine where you run `make` and talks to Grafana over its API. Set this up once per machine.
+
+1. **Install gcx**
+   ```bash
+   brew install gcx
+   # or: curl -fsSL https://raw.githubusercontent.com/grafana/gcx/main/scripts/install.sh | sh
+   gcx --version
+   ```
+2. **Create a service account** in Grafana: **Administration → Users and access → Service accounts → Add service account**. Name it `gcx-sync` and set the role to **Editor** (needed for `restore-grafana` to push) or **Admin**.
+3. **Generate a token**: on the service account's page, **Add service account token → Generate token**. Copy it right away. Tokens start with `glsa_`.
+4. **Save the token** as `GRAFANA_SA_TOKEN` in `.env`.
+5. **Log in gcx**
+   ```bash
+   gcx login local --server http://<host>:3000 --token glsa_... --yes
+   gcx config check
+   ```
+   The server must be the same address you use for Grafana in your browser.
+
+**Restricted dashboards:** gcx skips any dashboard the service account isn't allowed to view, with no error. If a dashboard has its own permissions (as ISS Tracking does), open it and go to **Settings → Permissions**, then add the `gcx-sync` service account with **Edit**. Giving the service account the **Admin** role avoids this entirely.
+
+**Data sources:** only dashboards and folders are synced. Data sources come from `grafana/provisioning/datasources/`. A data source added through the Grafana UI is not captured by `make sync`, so add it to the provisioning folder if it needs to survive a rebuild.
+
+### Node-RED notes
+
+`node-red/data/` is not bind-mounted. Node-RED's runtime state lives in the `node-red-data` named volume. A bind mount caused `EBUSY` errors on deploy (macOS Spotlight interfering with Node-RED's atomic rename-on-save), so `sync-flows` and `restore-flows` bridge the volume to git deliberately with `docker cp`.
+
+After `make restore-flows`, open the editor and click **Deploy** so Node-RED loads the restored flows.
+
+If the Node-RED editor is reachable outside your LAN or VPN, configure `adminAuth` in `settings.js`, set `NODE_RED_ENABLE_AUTH=true` in `.env`, then run `make sync-flows`.
+
+### InfluxDB notes
+
+`sync-influx` and `restore-influx` read the org name from `INFLUX_ORG` in the Makefile. Keep it set to `iss_data`, matching `INFLUXDB_ORG` in `.env`.
+
+`restore-influx` (`influx apply`) is meant for a fresh instance. Against an instance that already has these resources, such as the `iss_position_data` bucket created on first boot, it can fail on name conflicts or create duplicates.
+
+Time-series data is not in git. Back it up with `make backup-influx` (writes to `./backups/`, which is gitignored).
+
+---
+
+## Command reference
+
+```bash
+make up               # start the stack
+make down             # stop the stack (data persists in named volumes)
+make ps               # container status
+make logs             # tail all container logs
+make config           # validate docker-compose.yml + .env interpolation
+make secrets          # print random values for .env
+
+make sync             # sync-flows + sync-grafana + sync-influx
+make restore          # restore-flows + restore-grafana + restore-influx
+
+make sync-flows       # Node-RED flows/settings: container → repo
+make restore-flows    # Node-RED flows/settings: repo → container (then Deploy)
+make sync-grafana     # Grafana dashboards/folders: Grafana → repo (gcx pull)
+make restore-grafana  # Grafana dashboards/folders: repo → Grafana (gcx push)
+make sync-influx      # InfluxDB resource template: container → repo
+make restore-influx   # InfluxDB resource template: repo → container (fresh instance only)
+
+make backup           # dump InfluxDB data + Node-RED flows/creds to ./backups/<timestamp>/
+make backup-influx    # InfluxDB data only, to ./backups/influx-<timestamp>/
+make clean            # stop the stack AND delete all volumes (destructive)
+```
 
 ## Repo layout
 
 ```
 .
-├── docker-compose.yml              # Core 3-service stack
-├── docker-compose.portainer.yml    # Optional: add a Docker GUI (see file header)
-├── .env.example                    # Copy to .env, fill in secrets
-├── Makefile                        # up / down / logs / backup / secrets / sync-flows / restore-flows
+├── docker-compose.yml
+├── docker-compose.portainer.yml       # optional Docker GUI (see file header)
+├── .env.example                       # copy to .env and fill in secrets
+├── Makefile
 ├── node-red/
-│   ├── Dockerfile                  # Bakes in node-red-contrib-influxdb at build time
+│   ├── Dockerfile                     # bakes in node-red-contrib-influxdb
 │   └── data/
-│       ├── flows.json              # Repo copy of the pipeline — see "Saving your work" below
-│       ├── settings.js             # Repo copy of runtime config (no secrets hardcoded)
-│       └── package.json            # Palette manifest
-├── grafana/
-│   ├── provisioning/
-│   │   ├── datasources/influxdb.yml    # Auto-configures the InfluxDB datasource
-│   │   └── dashboards/dashboard.yml    # Auto-loads dashboards from grafana/dashboards/
-│   └── dashboards/
-│       └── plant-floor-overview.json   # Starter dashboard
-└── docs/
-    └── ARCHITECTURE.md             # Pipeline design + how to connect real equipment
+│       ├── flows.json                 # ISS flows (make sync-flows)
+│       ├── settings.js                # runtime config, no hardcoded secrets
+│       └── package.json               # palette manifest
+├── influxdb/
+│   └── template.yml                   # bucket/task definitions (make sync-influx)
+└── grafana/
+    ├── provisioning/
+    │   └── datasources/influxdb.yml   # auto-configures the InfluxDB data source
+    └── resources/                     # dashboards + folders (make sync-grafana)
+        ├── dashboards.v0alpha1.dashboard.grafana.app/<uid>.json
+        └── folders.*/<uid>.json
 ```
 
-**Note on `node-red/data/`:** these files are *not* bind-mounted into the
-running container. Node-RED's actual runtime state (`flows.json`,
-`settings.js`, `flows_cred.json`, `node_modules`, etc.) lives in a Docker
-named volume (`node-red-data`), independent of this folder. The copies in
-`node-red/data/` are what you see in git — they only reflect the live state
-after you explicitly run `make sync-flows` (see below). A named volume was
-chosen over a bind mount after hitting host-filesystem issues (notably
-Docker Desktop on macOS interfering with Node-RED's atomic file rename on
-deploy) that don't reproduce with this approach.
+gcx names subfolders after Grafana's API type and version (e.g. `v0alpha1`). The dashboard JSON inside may use a newer schema such as `dashboard.grafana.app/v2`. That's expected, and `restore-grafana` pushes each file in its own format.
 
-## Common tasks
+## Secrets
 
-```bash
-make logs           # tail all container logs
-make ps              # container status
-make config          # validate docker-compose.yml + .env interpolation
-make backup          # dump InfluxDB data + Node-RED flows/creds to ./backups/<timestamp>/
-make sync-flows      # pull flows.json + settings.js from the running container into the repo
-make restore-flows   # push the repo's flows.json + settings.js into the running container
-make down            # stop the stack (keeps data — named volume persists)
-make clean           # stop the stack AND delete all volumes (destructive, commented out by default)
-```
+Keep these out of every commit (covered by `.gitignore`):
 
-## Saving your work: flows.json and settings.js
+- `.env`: InfluxDB admin token, Grafana admin password, Grafana service account token, Node-RED credential secret.
+- `node-red/data/flows_cred.json`: lives only in the Node-RED volume. `make backup` captures an encrypted copy outside git.
+- `backups/`: InfluxDB data backups.
 
-Node-RED writes directly to the named volume, not to this repo folder. To
-get your changes into git, or to load a client's version onto a fresh
-machine, use the sync/restore commands rather than editing the files under
-`node-red/data/` directly and expecting them to take effect.
-
-**While actively developing (editor → repo):**
-```bash
-# 1. Edit flows in the Node-RED UI as normal (http://localhost:1880), hit Deploy
-# 2. Pull the current state out of the container and into the repo
-make sync-flows
-# 3. Review and commit
-git add node-red/data/flows.json node-red/data/settings.js
-git commit -m "Update pipeline logic for <change>"
-```
-
-**On a fresh clone or a new machine (repo → editor):**
-```bash
-make up              # creates the volume + starts the containers
-make restore-flows   # pushes the repo's flows.json + settings.js into the container
-# Then open the Node-RED editor and hit Deploy so Node-RED picks up the change
-```
-
-Both `sync-flows` and `restore-flows` require the stack to already be
-running (`make up`) — they operate via `docker cp` against the live
-container, not the volume directly.
-
-**`flows_cred.json` is intentionally excluded from this workflow.** It never
-syncs to the repo and is not tracked in git. It lives only in the named
-volume, decrypted using `NODE_RED_CREDENTIAL_SECRET` from `.env`. Re-enter
-credentials (PLC auth, tokens, etc.) through the Node-RED editor on each new
-deployment. If you need a recovery copy, `make backup` captures it as part
-of the encrypted-at-rest backup — outside of git entirely.
-
-## Version control per client
-
-Per the standard workflow: **one private repo per client.**
-
-```bash
-# Starting a new client from this template
-git clone <this-repo-url> client-acme-pipeline
-cd client-acme-pipeline
-rm -rf .git && git init
-git remote add origin <new-private-repo-url>
-cp .env.example .env   # fill in this client's real secrets — .env is gitignored
-make up
-make restore-flows     # load the template's starter flows.json/settings.js into the new container
-git add .
-git commit -m "Initial pipeline for Acme Manufacturing"
-git push -u origin main
-```
-
-Keep `.env` and `node-red/data/flows_cred.json` out of every commit (already
-covered by `.gitignore`) — they hold the InfluxDB token, Grafana admin
-password, and any credentials Node-RED encrypts.
-
-## Going live at a client site
-
-1. Replace the simulator with a real input node for their equipment (MQTT / Modbus / OPC-UA / S7 / REST) — see `docs/ARCHITECTURE.md`.
-2. Tune calibration constants, thresholds, and health-score weighting in the `Math`, `Stateful Ops`, and `Synthetic` function nodes for their actual machines, then `make sync-flows` and commit.
-3. Set `NODE_RED_ENABLE_AUTH=true` and configure `adminAuth` in `node-red/data/settings.js` if the Node-RED editor is reachable outside a VPN/Tailscale network — edit via the Node-RED UI or a direct volume edit, then `make sync-flows` to capture it in git.
-4. Turn off the public InfluxDB port binding in `docker-compose.yml` (leave InfluxDB reachable only on the internal Docker network) once you don't need it for debugging.
-5. Decide on hosting (client-hosted vs. your managed VM vs. hybrid) and remote access (Tailscale vs. WireGuard) per the standard tool-stack decision tree.
-6. Point Uptime Kuma (run centrally, across all clients) at this stack's exposed endpoints.
-7. Set a real retention policy (`INFLUXDB_INIT_RETENTION`) matching what the client needs and what your storage budget allows.
+gcx also keeps its own copy of the service account token in `~/.config/gcx/config.yaml` on your machine.
 
 ## Notes
 
-- **Why Flux, not InfluxQL**: the Grafana datasource is provisioned in Flux mode to match InfluxDB 2.x's native query language and to use `schema.tagValues()` for the machine-picker dashboard variable. If you're more comfortable in InfluxQL, InfluxDB 2.x still accepts it via the `/query` compatibility endpoint, but the provisioned datasource here is Flux-first.
-- **Environment variable substitution**: both Node-RED (`${VAR}` in `flows.json`) and Grafana (`$__env{VAR}` in provisioning YAML) resolve these directly from the container's environment at startup — nothing needs templating at build time. Update `.env` and restart the affected container to change them.
-- **Why a named volume instead of a bind mount for `node-red/data/`**: bind-mounting `flows.json` directly triggered `EBUSY: resource busy or locked` errors on deploy, traced to macOS Spotlight indexing interfering with Node-RED's atomic rename-on-save. The named volume sidesteps this entirely; `make sync-flows` / `make restore-flows` bridge it back to git deliberately rather than automatically.
-
-## To Do List
-
-- Create separate InfluxDB tokens for write-only access (for Node-RED) and read-only access (for Grafana)
+- **Why Flux:** the Grafana data source is provisioned in Flux mode to match InfluxDB 2.x's native query language. In Flux, the bucket is set in each query (`from(bucket: "iss_position_data")`), not by the data source's default bucket.
+- **Environment variables:** Node-RED (`${VAR}` in `flows.json`) and Grafana (`$__env{VAR}` in provisioning YAML) read values from the container environment at startup. Change `.env` and restart the affected container to apply.
+- **Anonymous Grafana access:** `GRAFANA_ALLOW_ANONYMOUS=true` lets anyone on the network view dashboards without logging in, which is handy for a wall display. Leave it `false` otherwise.
+- **Single InfluxDB token:** Node-RED and Grafana share the admin token (`INFLUXDB_TOKEN`). It has full access to the InfluxDB instance, so treat `.env` accordingly.
